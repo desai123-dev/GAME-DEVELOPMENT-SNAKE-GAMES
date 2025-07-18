@@ -1,0 +1,105 @@
+#include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+
+using namespace sf;
+
+const int width = 800;
+const int height = 600;
+const int boxSize = 20;
+const int cols = width / boxSize;
+const int rows = height / boxSize;
+
+enum Direction { STOP = 0, LEFT, RIGHT, UP, DOWN };
+Direction dir;
+
+struct SnakeSegment {
+    int x, y;
+};
+
+int main() {
+    RenderWindow window(VideoMode(width, height), "Snake Game");
+    window.setFramerateLimit(10); // Initial speed
+
+    // Load sound
+    SoundBuffer buffer;
+    buffer.loadFromFile("eat.wav"); // You must have this file
+    Sound eatSound;
+    eatSound.setBuffer(buffer);
+
+    // Snake
+    std::vector<SnakeSegment> snake = {{cols / 2, rows / 2}};
+    int foodX = rand() % cols;
+    int foodY = rand() % rows;
+
+    dir = STOP;
+    int score = 0;
+    bool gameOver = false;
+
+    while (window.isOpen()) {
+        Event e;
+        while (window.pollEvent(e)) {
+            if (e.type == Event::Closed)
+                window.close();
+            if (e.type == Event::KeyPressed) {
+                if (e.key.code == Keyboard::Up && dir != DOWN) dir = UP;
+                if (e.key.code == Keyboard::Down && dir != UP) dir = DOWN;
+                if (e.key.code == Keyboard::Left && dir != RIGHT) dir = LEFT;
+                if (e.key.code == Keyboard::Right && dir != LEFT) dir = RIGHT;
+            }
+        }
+
+        // Move snake
+        SnakeSegment head = snake.front();
+        if (dir == LEFT) head.x--;
+        if (dir == RIGHT) head.x++;
+        if (dir == UP) head.y--;
+        if (dir == DOWN) head.y++;
+
+        // Check collision
+        if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) gameOver = true;
+        for (auto& seg : snake)
+            if (seg.x == head.x && seg.y == head.y) gameOver = true;
+
+        if (gameOver) {
+            window.close();
+        }
+
+        snake.insert(snake.begin(), head);
+
+        // Eat food
+        if (head.x == foodX && head.y == foodY) {
+            foodX = rand() % cols;
+            foodY = rand() % rows;
+            eatSound.play();
+            score++;
+            // Increase speed as difficulty
+            window.setFramerateLimit(10 + score / 3);
+        } else {
+            snake.pop_back(); // remove tail
+        }
+
+        // Drawing
+        window.clear(Color::Black);
+
+        // Draw snake
+        for (auto& s : snake) {
+            RectangleShape rect(Vector2f(boxSize - 2, boxSize - 2));
+            rect.setPosition(s.x * boxSize, s.y * boxSize);
+            rect.setFillColor(Color::Green);
+            window.draw(rect);
+        }
+
+        // Draw food
+        RectangleShape food(Vector2f(boxSize - 2, boxSize - 2));
+        food.setPosition(foodX * boxSize, foodY * boxSize);
+        food.setFillColor(Color::Red);
+        window.draw(food);
+
+        window.display();
+    }
+
+    return 0;
+}
